@@ -95,7 +95,7 @@ def select_topic(topic_id, student_name):
     return False
 
 def generate_pdf():
-    """Generate PDF report"""
+    """Generate PDF report with improved compatibility"""
     data = load_data()
 
     # Create PDF
@@ -107,32 +107,79 @@ def generate_pdf():
     pdf.cell(0, 10, 'Course Topic Selection Report', 0, 1, 'C')
     pdf.ln(10)
 
+    # Add generation date
+    from datetime import datetime
+    pdf.set_font('Arial', '', 10)
+    pdf.cell(0, 6, f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 1)
+    pdf.ln(5)
+
     pdf.set_font('Arial', '', 12)
 
     for category, topics in data.items():
         # Category title
         pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, f'Category: {category}', 0, 1)
+        # Handle special characters by encoding properly
+        try:
+            category_text = f'Category: {category}'
+            pdf.cell(0, 10, category_text, 0, 1)
+        except:
+            pdf.cell(0, 10, f'Category: {category.encode("ascii", "ignore").decode()}', 0, 1)
+
         pdf.set_font('Arial', '', 10)
 
         for topic in topics:
             student_info = topic["student"] if topic["student"] else "Available"
+
+            # Clean text for PDF compatibility
+            try:
+                topic_title = topic["title"]
+                topic_text = f'  {topic["id"]}. {topic_title}: {student_info}'
+            except:
+                # Fallback for encoding issues
+                topic_title = str(topic["title"]).encode("ascii", "ignore").decode()
+                student_clean = str(student_info).encode("ascii", "ignore").decode()
+                topic_text = f'  {topic["id"]}. {topic_title}: {student_clean}'
+
             # Handle long topic titles by splitting them
-            topic_text = f'  {topic["id"]}. {topic["title"]}: {student_info}'
             if len(topic_text) > 80:
                 # Split long lines
                 lines = [topic_text[i:i+80] for i in range(0, len(topic_text), 80)]
                 for i, line in enumerate(lines):
-                    if i == 0:
-                        pdf.cell(0, 6, line, 0, 1)
-                    else:
-                        pdf.cell(0, 6, '    ' + line, 0, 1)
+                    try:
+                        if i == 0:
+                            pdf.cell(0, 6, line, 0, 1)
+                        else:
+                            pdf.cell(0, 6, '    ' + line, 0, 1)
+                    except:
+                        # Skip problematic lines
+                        continue
             else:
-                pdf.cell(0, 6, topic_text, 0, 1)
+                try:
+                    pdf.cell(0, 6, topic_text, 0, 1)
+                except:
+                    # Skip problematic lines
+                    continue
 
         pdf.ln(5)
 
-    return pdf.output(dest='S').encode('latin-1')
+    # Return PDF data with improved compatibility
+    try:
+        # For FPDF2 (newer versions)
+        return pdf.output()
+    except Exception as e:
+        try:
+            # For older FPDF versions
+            return pdf.output(dest='S').encode('latin-1')
+        except:
+            # Last resort - return as bytes
+            import io
+            buffer = io.BytesIO()
+            pdf_string = pdf.output(dest='S')
+            if isinstance(pdf_string, str):
+                buffer.write(pdf_string.encode('latin-1'))
+            else:
+                buffer.write(pdf_string)
+            return buffer.getvalue()
 
 
 

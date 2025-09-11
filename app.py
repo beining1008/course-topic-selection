@@ -1,8 +1,7 @@
 import streamlit as st
 import json
 import os
-from fpdf import FPDF
-import io
+from datetime import datetime
 
 # 页面配置
 st.set_page_config(page_title="Course Topic Selection System", page_icon="📚", layout="wide")
@@ -94,92 +93,52 @@ def select_topic(topic_id, student_name):
                     return False
     return False
 
-def generate_pdf():
-    """Generate PDF report with improved compatibility"""
+def generate_text_report():
+    """Generate simple text report"""
     data = load_data()
 
-    # Create PDF
-    pdf = FPDF()
-    pdf.add_page()
+    # Create text report
+    report_lines = []
+    report_lines.append("=" * 60)
+    report_lines.append("COURSE TOPIC SELECTION REPORT")
+    report_lines.append("=" * 60)
+    report_lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report_lines.append("")
 
-    # Add title
-    pdf.set_font('Arial', 'B', 16)
-    pdf.cell(0, 10, 'Course Topic Selection Report', 0, 1, 'C')
-    pdf.ln(10)
-
-    # Add generation date
-    from datetime import datetime
-    pdf.set_font('Arial', '', 10)
-    pdf.cell(0, 6, f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 1)
-    pdf.ln(5)
-
-    pdf.set_font('Arial', '', 12)
+    # Count statistics
+    total_topics = 0
+    selected_topics = 0
 
     for category, topics in data.items():
-        # Category title
-        pdf.set_font('Arial', 'B', 14)
-        # Handle special characters by encoding properly
-        try:
-            category_text = f'Category: {category}'
-            pdf.cell(0, 10, category_text, 0, 1)
-        except:
-            pdf.cell(0, 10, f'Category: {category.encode("ascii", "ignore").decode()}', 0, 1)
-
-        pdf.set_font('Arial', '', 10)
+        report_lines.append(f"CATEGORY: {category}")
+        report_lines.append("-" * 40)
 
         for topic in topics:
+            total_topics += 1
             student_info = topic["student"] if topic["student"] else "Available"
-
-            # Clean text for PDF compatibility
-            try:
-                topic_title = topic["title"]
-                topic_text = f'  {topic["id"]}. {topic_title}: {student_info}'
-            except:
-                # Fallback for encoding issues
-                topic_title = str(topic["title"]).encode("ascii", "ignore").decode()
-                student_clean = str(student_info).encode("ascii", "ignore").decode()
-                topic_text = f'  {topic["id"]}. {topic_title}: {student_clean}'
-
-            # Handle long topic titles by splitting them
-            if len(topic_text) > 80:
-                # Split long lines
-                lines = [topic_text[i:i+80] for i in range(0, len(topic_text), 80)]
-                for i, line in enumerate(lines):
-                    try:
-                        if i == 0:
-                            pdf.cell(0, 6, line, 0, 1)
-                        else:
-                            pdf.cell(0, 6, '    ' + line, 0, 1)
-                    except:
-                        # Skip problematic lines
-                        continue
+            if topic["student"]:
+                selected_topics += 1
+                status = "SELECTED"
             else:
-                try:
-                    pdf.cell(0, 6, topic_text, 0, 1)
-                except:
-                    # Skip problematic lines
-                    continue
+                status = "AVAILABLE"
 
-        pdf.ln(5)
+            report_lines.append(f"{topic['id']:2d}. {topic['title']}")
+            report_lines.append(f"    Student: {student_info}")
+            report_lines.append(f"    Status: {status}")
+            report_lines.append("")
 
-    # Return PDF data with improved compatibility
-    try:
-        # For FPDF2 (newer versions)
-        return pdf.output()
-    except Exception as e:
-        try:
-            # For older FPDF versions
-            return pdf.output(dest='S').encode('latin-1')
-        except:
-            # Last resort - return as bytes
-            import io
-            buffer = io.BytesIO()
-            pdf_string = pdf.output(dest='S')
-            if isinstance(pdf_string, str):
-                buffer.write(pdf_string.encode('latin-1'))
-            else:
-                buffer.write(pdf_string)
-            return buffer.getvalue()
+        report_lines.append("")
+
+    # Add summary
+    report_lines.append("=" * 60)
+    report_lines.append("SUMMARY")
+    report_lines.append("=" * 60)
+    report_lines.append(f"Total Topics: {total_topics}")
+    report_lines.append(f"Selected Topics: {selected_topics}")
+    report_lines.append(f"Available Topics: {total_topics - selected_topics}")
+    report_lines.append(f"Selection Rate: {(selected_topics/total_topics*100):.1f}%")
+
+    return "\n".join(report_lines)
 
 
 
@@ -249,17 +208,18 @@ def main():
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("📄 Generate PDF Report"):
+            if st.button("📄 Generate Text Report"):
                 try:
-                    pdf_data = generate_pdf()
+                    text_data = generate_text_report()
                     st.download_button(
-                        label="Download PDF Report",
-                        data=pdf_data,
-                        file_name="topic_selection_report.pdf",
-                        mime="application/pdf"
+                        label="Download Text Report",
+                        data=text_data,
+                        file_name=f"topic_selection_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                        mime="text/plain"
                     )
+                    st.success("✅ Text report generated successfully!")
                 except Exception as e:
-                    st.error(f"Error generating PDF: {str(e)}")
+                    st.error(f"Error generating report: {str(e)}")
 
         with col2:
             if st.button("🔄 Reset All Selections"):

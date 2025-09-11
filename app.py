@@ -3,8 +3,6 @@ import json
 import os
 from fpdf import FPDF
 import io
-import qrcode
-from PIL import Image
 
 # 页面配置
 st.set_page_config(page_title="Course Topic Selection System", page_icon="📚", layout="wide")
@@ -136,29 +134,7 @@ def generate_pdf():
 
     return pdf.output(dest='S').encode('latin-1')
 
-def generate_qr_code():
-    """Generate QR code for the application URL"""
-    try:
-        # The URL of your application
-        url = "https://course-topic-selection-hsba5qkmq3nvpqbkpgaubc.streamlit.app/"
 
-        # Create QR code
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
-        qr.add_data(url)
-        qr.make(fit=True)
-
-        # Create image
-        img = qr.make_image(fill_color="black", back_color="white")
-
-        return img, url
-    except Exception as e:
-        st.error(f"Error generating QR code: {e}")
-        return None, None
 
 # 主应用
 def main():
@@ -168,17 +144,6 @@ def main():
     # Page title
     st.title("📚 Course Topic Selection System")
     st.markdown("### Welcome! Please select your presentation topic.")
-
-    # Add QR code section
-    with st.expander("📱 QR Code - Scan to Access on Mobile", expanded=False):
-        qr_img, app_url = generate_qr_code()
-        if qr_img:
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.image(qr_img, caption="Scan this QR code to access the application", width=300)
-                st.code(app_url, language=None)
-                st.markdown("**📱 Scan with your phone camera or QR code app**")
-
     st.markdown("---")
 
     # Student name input

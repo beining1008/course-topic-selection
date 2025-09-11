@@ -185,39 +185,50 @@ def main():
 
         st.markdown("")
     
-    # Admin functions
+    # Admin functions with password protection
     st.markdown("---")
-    st.subheader("📊 Teacher/Admin Functions")
+    st.subheader("🔐 Teacher/Admin Functions")
 
-    col1, col2 = st.columns(2)
+    # Password protection
+    admin_password = st.text_input("Enter admin password:", type="password", key="admin_pass")
 
-    with col1:
-        if st.button("📄 Generate PDF Report"):
-            try:
-                pdf_data = generate_pdf()
-                st.download_button(
-                    label="Download PDF Report",
-                    data=pdf_data,
-                    file_name="topic_selection_report.pdf",
-                    mime="application/pdf"
-                )
-            except Exception as e:
-                st.error(f"Error generating PDF: {str(e)}")
+    if admin_password == "teacher2024":  # You can change this password
+        st.success("✅ Admin access granted")
 
-    with col2:
-        if st.button("🔄 Reset All Selections"):
-            if st.session_state.get('confirm_reset', False):
-                # Reset data
-                for category in data.values():
-                    for topic in category:
-                        topic["student"] = ""
-                save_data(data)
-                st.success("All selections have been reset!")
-                st.session_state.confirm_reset = False
-                st.rerun()
-            else:
-                st.session_state.confirm_reset = True
-                st.warning("Click again to confirm reset of all selections")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("📄 Generate PDF Report"):
+                try:
+                    pdf_data = generate_pdf()
+                    st.download_button(
+                        label="Download PDF Report",
+                        data=pdf_data,
+                        file_name="topic_selection_report.pdf",
+                        mime="application/pdf"
+                    )
+                except Exception as e:
+                    st.error(f"Error generating PDF: {str(e)}")
+
+        with col2:
+            if st.button("🔄 Reset All Selections"):
+                if st.session_state.get('confirm_reset', False):
+                    # Reset data
+                    for category in data.values():
+                        for topic in category:
+                            topic["student"] = ""
+                    save_data(data)
+                    st.success("All selections have been reset!")
+                    st.session_state.confirm_reset = False
+                    st.rerun()
+                else:
+                    st.session_state.confirm_reset = True
+                    st.warning("Click again to confirm reset of all selections")
+
+    elif admin_password:
+        st.error("❌ Incorrect password")
+    else:
+        st.info("👆 Teachers: Enter password to access admin functions")
 
 if __name__ == "__main__":
     main()

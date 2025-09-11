@@ -7,6 +7,8 @@ import io
 # 页面配置
 st.set_page_config(page_title="Course Topic Selection System", page_icon="📚", layout="wide")
 
+# Force SSL refresh - version 1.1
+
 # 初始化数据文件
 def initialize_data():
     """Initialize topics_data.json file"""

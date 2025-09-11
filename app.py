@@ -158,6 +158,22 @@ def main():
     if student_name:
         st.markdown(f"**Current user:** {student_name}")
 
+        # Show student's current selection if any (privacy-friendly)
+        data = load_data()
+        student_selection = None
+        for category, topics in data.items():
+            for topic in topics:
+                if topic["student"] == student_name.strip():
+                    student_selection = (category, topic)
+                    break
+            if student_selection:
+                break
+
+        if student_selection:
+            st.success(f"📋 Your current selection: **{student_selection[1]['title']}** (Topic {student_selection[1]['id']})")
+        else:
+            st.info("📋 You haven't selected any topic yet.")
+
     st.markdown("---")
     
     # Load data
@@ -178,9 +194,9 @@ def main():
                         st.markdown(f"**{topic['id']}. {topic['title']}**")
                         st.markdown("✅ *Available*")
                     else:
-                        # Selected topic
+                        # Selected topic - hide student name for privacy
                         st.markdown(f"**{topic['id']}. {topic['title']}**")
-                        st.markdown(f"🔒 *Selected by {topic['student']}*")
+                        st.markdown("🔒 *This topic has been selected*")
 
                 with col2:
                     if topic["student"] == "":

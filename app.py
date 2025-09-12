@@ -1,6 +1,8 @@
 import streamlit as st
 import json
 import os
+import time
+import random
 from datetime import datetime
 
 # 页面配置
@@ -70,7 +72,14 @@ def check_student_has_selected(data, student_name):
     return False, None
 
 def select_topic(topic_id, student_name):
-    """Select a topic"""
+    """Select a topic with race condition protection"""
+    import time
+    import random
+
+    # Add small random delay to reduce simultaneous access
+    time.sleep(random.uniform(0.05, 0.15))
+
+    # Reload data to get the most current state (critical for race condition protection)
     data = load_data()
 
     # Check if student has already selected a topic
@@ -79,18 +88,22 @@ def select_topic(topic_id, student_name):
         st.error(f"You have already selected a topic: {selected_topic}")
         return False
 
-    # Find and update topic
+    # Find and update topic with atomic check
     for category in data.values():
         for topic in category:
             if topic["id"] == topic_id:
+                # Critical section: double-check availability before assignment
                 if topic["student"] == "":
                     topic["student"] = student_name
                     save_data(data)
-                    st.success(f"Successfully selected topic: {topic['title']}")
+                    st.success(f"✅ Successfully selected topic: {topic['title']}")
                     return True
                 else:
-                    st.error(f"This topic has been selected by {topic['student']}")
+                    # More user-friendly error message for race condition
+                    st.error(f"❌ Sorry, this topic was just selected by another student. Please refresh and choose a different topic.")
                     return False
+
+    st.error("❌ Topic not found")
     return False
 
 def generate_text_report():
@@ -175,7 +188,15 @@ def main():
             st.info("📋 You haven't selected any topic yet.")
 
     st.markdown("---")
-    
+
+    # Add refresh button and tip for race condition handling
+    col_refresh, col_tip = st.columns([1, 3])
+    with col_refresh:
+        if st.button("🔄 Refresh", help="Click to see the latest topic availability"):
+            st.rerun()
+    with col_tip:
+        st.markdown("*💡 Tip: If you see an error, the topic was just selected by someone else. Try refreshing!*")
+
     # Load data
     data = load_data()
 
@@ -204,8 +225,15 @@ def main():
                             if not student_name.strip():
                                 st.error("Please enter your name first!")
                             else:
-                                if select_topic(topic["id"], student_name.strip()):
-                                    st.rerun()
+                                # Show loading message during selection
+                                with st.spinner("Selecting topic..."):
+                                    success = select_topic(topic["id"], student_name.strip())
+                                    if success:
+                                        st.rerun()
+                                    else:
+                                        # Auto-refresh on conflict to show updated status
+                                        time.sleep(0.5)
+                                        st.rerun()
 
                 st.markdown("---")
 

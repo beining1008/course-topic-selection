@@ -59,9 +59,51 @@ def load_data():
         return json.load(f)
 
 def save_data(data):
-    """保存数据"""
+    """保存数据并创建备份"""
+    # 保存主数据文件
     with open("topics_data.json", "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # 创建带时间戳的备份文件
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"backup_topics_{timestamp}.json"
+    with open(backup_filename, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # 记录选择日志
+    log_selection_activity(data)
+
+def log_selection_activity(data):
+    """记录选择活动日志"""
+    try:
+        log_entry = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "selections": []
+        }
+
+        for category, topics in data.items():
+            for topic in topics:
+                if topic["student"]:
+                    log_entry["selections"].append({
+                        "topic_id": topic["id"],
+                        "topic_title": topic["title"],
+                        "student": topic["student"],
+                        "category": category
+                    })
+
+        # 追加到日志文件
+        log_filename = "selection_log.txt"
+        with open(log_filename, "a", encoding="utf-8") as f:
+            f.write(f"\n=== LOG ENTRY {log_entry['timestamp']} ===\n")
+            if log_entry["selections"]:
+                for selection in log_entry["selections"]:
+                    f.write(f"Topic {selection['topic_id']}: {selection['topic_title']} -> {selection['student']}\n")
+            else:
+                f.write("No selections yet.\n")
+            f.write("=" * 50 + "\n")
+    except Exception as e:
+        # 静默处理日志错误，不影响主功能
+        pass
 
 def check_student_has_selected(data, student_name):
     """Check if student has already selected a topic"""
@@ -279,6 +321,49 @@ def main():
                 else:
                     st.session_state.confirm_reset = True
                     st.warning("Click again to confirm reset of all selections")
+
+        # 新增：数据恢复和备份管理
+        st.markdown("---")
+        st.markdown("### 📦 Data Backup & Recovery")
+
+        col3, col4 = st.columns(2)
+
+        with col3:
+            if st.button("💾 Download Current Backup"):
+                try:
+                    # 创建当前数据的备份
+                    backup_data = {
+                        "backup_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "data": data
+                    }
+                    backup_json = json.dumps(backup_data, ensure_ascii=False, indent=2)
+                    st.download_button(
+                        label="Download Backup File",
+                        data=backup_json,
+                        file_name=f"course_selection_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                        mime="application/json"
+                    )
+                    st.success("✅ Backup file ready for download!")
+                except Exception as e:
+                    st.error(f"Error creating backup: {str(e)}")
+
+        with col4:
+            uploaded_file = st.file_uploader("📤 Restore from Backup", type=['json'])
+            if uploaded_file is not None:
+                try:
+                    backup_content = json.loads(uploaded_file.read().decode('utf-8'))
+                    if 'data' in backup_content:
+                        restored_data = backup_content['data']
+                        save_data(restored_data)
+                        st.success("✅ Data restored successfully!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid backup file format")
+                except Exception as e:
+                    st.error(f"❌ Error restoring backup: {str(e)}")
+
+        # 显示备份提示
+        st.info("💡 **Important**: Download backups regularly to prevent data loss during system restarts!")
 
     elif admin_password:
         st.error("❌ Incorrect password")
